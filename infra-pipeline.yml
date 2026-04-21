@@ -29,9 +29,17 @@ steps:
       secureFile: "$(sshPublicKeySecureFile)"
 
   - script: |
+      set -e
+
       sudo apt-get update
       sudo apt-get install -y unzip curl
-    displayName: 'Install required packages'
+
+      if ! command -v az >/dev/null 2>&1; then
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      fi
+
+      az version
+    displayName: "Install required packages and Azure CLI"
 
   - script: |
       set -e
@@ -137,7 +145,7 @@ steps:
       scriptLocation: "inlineScript"
       workingDirectory: "$(workingDirectory)"
       inlineScript: |
-        set -euo pipefail
+        set -e
 
         export ARM_USE_AZUREAD=true
         export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
