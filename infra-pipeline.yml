@@ -1,0 +1,235 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: "linux_agent_pool"
+
+
+variables:
+  - group: epicbook-secrets
+  - name: terraformVersion
+    value: "1.9.8"
+  - name: azureServiceConnection
+    value: "azure-devops-connection"
+  - name: sshPublicKeySecureFile
+    value: "id_ed25519.pub"
+  - name: workingDirectory
+    value: "$(Build.SourcesDirectory)"
+
+steps:
+  - checkout: self
+    displayName: "Checkout repository"
+
+  - task: DownloadSecureFile@1
+    name: sshPublicKey
+    displayName: "Download SSH public key"
+    inputs:
+      secureFile: "$(sshPublicKeySecureFile)"
+
+  - script: |
+      set -euo pipefail
+
+      if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+        if command -v sudo >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y curl unzip
+        else
+          echo "curl and unzip must be installed on the self-hosted agent."
+          exit 1
+        fi
+      fi
+    displayName: "Ensure required tools are available"
+
+  - script: |
+      set -euo pipefail
+
+      install_dir="$(Agent.TempDirectory)/terraform-bin"
+      rm -rf "$install_dir"
+      mkdir -p "$install_dir"
+
+      echo "Installing Terraform $(terraformVersion)..."
+      curl -fsSLo "$install_dir/terraform.zip" "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+      unzip -o "$install_dir/terraform.zip" -d "$install_dir"
+
+      echo "##vso[task.prependpath]$install_dir"
+      "$install_dir/terraform" version
+    displayName: "Install Terraform"
+
+  - script: |
+      set -euo pipefail
+      chmod 644 "$(sshPublicKey.secureFilePath)"
+      ls -l "$(sshPublicKey.secureFilePath)"
+    displayName: "Prepare SSH public key"
+
+  - task: AzureCLI@2
+    displayName: "Terraform init, fmt, and validate"
+    inputs:
+      azureSubscription: "$(azureServiceConnection)"
+      addSpnToEnvironment: true
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
+      workingDirectory: "$(workingDirectory)"
+      inlineScript: |
+        set -euo pipefail
+
+        export ARM_USE_AZUREAD=true
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export ARM_TENANT_ID="${tenantId}"
+
+        if [ -n "${servicePrincipalId:-}" ]; then
+          export ARM_CLIENT_ID="${servicePrincipalId}"
+        fi
+
+        if [ -n "${servicePrincipalKey:-}" ]; then
+          export ARM_CLIENT_SECRET="${servicePrincipalKey}"
+        fi
+
+        if [ -n "${idToken:-}" ]; then
+          export ARM_USE_OIDC=true
+          export ARM_OIDC_TOKEN="${idToken}"
+        fi
+
+        terraform init -input=false -reconfigure
+        terraform fmt -check -recursive
+        terraform validate
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
+      TF_VAR_db_password: "$(dbPassword)"
+
+  - task: AzureCLI@2
+    displayName: "Terraform plan"
+    inputs:
+      azureSubscription: "$(azureServiceConnection)"
+      addSpnToEnvironment: true
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
+      workingDirectory: "$(workingDirectory)"
+      inlineScript: |
+        set -euo pipefail
+
+        export ARM_USE_AZUREAD=true
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export ARM_TENANT_ID="${tenantId}"
+
+        if [ -n "${servicePrincipalId:-}" ]; then
+          export ARM_CLIENT_ID="${servicePrincipalId}"
+        fi
+
+        if [ -n "${servicePrincipalKey:-}" ]; then
+          export ARM_CLIENT_SECRET="${servicePrincipalKey}"
+        fi
+
+        if [ -n "${idToken:-}" ]; then
+          export ARM_USE_OIDC=true
+          export ARM_OIDC_TOKEN="${idToken}"
+        fi
+
+        terraform plan -input=false -lock-timeout=5m -out=tfplan
+        mkdir -p "$(Build.ArtifactStagingDirectory)"
+        terraform show -no-color tfplan > "$(Build.ArtifactStagingDirectory)/tfplan.txt"
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
+      TF_VAR_db_password: "$(dbPassword)"
+
+  - task: PublishPipelineArtifact@1
+    displayName: "Publish Terraform plan"
+    inputs:
+      targetPath: "$(Build.ArtifactStagingDirectory)/tfplan.txt"
+      artifact: "terraform-plan"
+      publishLocation: "pipeline"
+
+  - task: AzureCLI@2
+    displayName: "Terraform apply"
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    inputs:
+      azureSubscription: "$(azureServiceConnection)"
+      addSpnToEnvironment: true
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
+      workingDirectory: "$(workingDirectory)"
+      inlineScript: |
+        set -euo pipefail
+
+        export ARM_USE_AZUREAD=true
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export ARM_TENANT_ID="${tenantId}"
+
+        if [ -n "${servicePrincipalId:-}" ]; then
+          export ARM_CLIENT_ID="${servicePrincipalId}"
+        fi
+
+        if [ -n "${servicePrincipalKey:-}" ]; then
+          export ARM_CLIENT_SECRET="${servicePrincipalKey}"
+        fi
+
+        if [ -n "${idToken:-}" ]; then
+          export ARM_USE_OIDC=true
+          export ARM_OIDC_TOKEN="${idToken}"
+        fi
+
+        terraform apply -input=false -auto-approve tfplan
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
+      TF_VAR_db_password: "$(dbPassword)"
+
+  - task: AzureCLI@2
+    displayName: "Write Terraform outputs to artifact file"
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    inputs:
+      azureSubscription: "$(azureServiceConnection)"
+      addSpnToEnvironment: true
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
+      workingDirectory: "$(workingDirectory)"
+      inlineScript: |
+        set -euo pipefail
+
+        export ARM_USE_AZUREAD=true
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export ARM_TENANT_ID="${tenantId}"
+
+        if [ -n "${servicePrincipalId:-}" ]; then
+          export ARM_CLIENT_ID="${servicePrincipalId}"
+        fi
+
+        if [ -n "${servicePrincipalKey:-}" ]; then
+          export ARM_CLIENT_SECRET="${servicePrincipalKey}"
+        fi
+
+        if [ -n "${idToken:-}" ]; then
+          export ARM_USE_OIDC=true
+          export ARM_OIDC_TOKEN="${idToken}"
+        fi
+
+        PUBLIC_IP="$(terraform output -raw public_ip_address)"
+        DB_HOST="$(terraform output -raw epicbook_db_endpoint)"
+
+        mkdir -p "$(Build.ArtifactStagingDirectory)"
+
+        cat > "$(Build.ArtifactStagingDirectory)/infra-outputs.env" <<EOF
+        vmPublicIp=${PUBLIC_IP}
+        dbHost=${DB_HOST}
+        EOF
+
+        cat "$(Build.ArtifactStagingDirectory)/infra-outputs.env"
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
+      TF_VAR_db_password: "$(dbPassword)"
+
+  - task: PublishPipelineArtifact@1
+    displayName: "Publish infrastructure outputs"
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    inputs:
+      targetPath: "$(Build.ArtifactStagingDirectory)/infra-outputs.env"
+      artifact: "infra-outputs"
+      publishLocation: "pipeline"
+
+  - script: |
+      echo "Terraform deployment completed."
+    displayName: "Finish infra pipeline"

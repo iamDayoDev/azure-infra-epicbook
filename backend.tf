@@ -1,9 +1,9 @@
 terraform {
-  # These backend resources must already exist before `terraform init` runs.
   backend "azurerm" {
     resource_group_name  = "epicbook-tfstate-rg"
     storage_account_name = "epicbooktfstate3657"
-    container_name       = "tfstate"
+    container_name       = "epibooktfstate"
     key                  = "azure-infra-epicbook.tfstate"
+    use_azuread_auth     = true
   }
 }
