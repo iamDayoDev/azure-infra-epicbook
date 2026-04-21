@@ -12,7 +12,7 @@ variables:
   - name: terraformVersion
     value: "1.9.8"
   - name: azureServiceConnection
-    value: "azure-devops-connection"
+    value: "azure-devops-connections"
   - name: sshPublicKeySecureFile
     value: "id_ed25519.pub"
   - name: workingDirectory
