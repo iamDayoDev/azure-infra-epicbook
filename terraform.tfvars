@@ -9,4 +9,3 @@ db_address_prefixes = ["10.0.2.0/24"]
 vm_name = "ansible-epicbook-vm"
 
 db_username = "epicbook"
-db_password = "change-me"
