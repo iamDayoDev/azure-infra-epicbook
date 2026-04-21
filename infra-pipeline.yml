@@ -29,36 +29,21 @@ steps:
       secureFile: "$(sshPublicKeySecureFile)"
 
   - script: |
-      set -euo pipefail
-
-      if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
-        if command -v sudo >/dev/null 2>&1; then
-          sudo apt-get update
-          sudo apt-get install -y curl unzip
-        else
-          echo "curl and unzip must be installed on the self-hosted agent."
-          exit 1
-        fi
-      fi
-    displayName: "Ensure required tools are available"
+      sudo apt-get update
+      sudo apt-get install -y unzip curl
+    displayName: 'Install required packages'
 
   - script: |
-      set -euo pipefail
-
-      install_dir="$(Agent.TempDirectory)/terraform-bin"
-      rm -rf "$install_dir"
-      mkdir -p "$install_dir"
-
+      set -e
       echo "Installing Terraform $(terraformVersion)..."
-      curl -fsSLo "$install_dir/terraform.zip" "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
-      unzip -o "$install_dir/terraform.zip" -d "$install_dir"
-
-      echo "##vso[task.prependpath]$install_dir"
-      "$install_dir/terraform" version
-    displayName: "Install Terraform"
+      curl -Lo terraform.zip https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+      unzip -o terraform.zip
+      sudo mv terraform /usr/local/bin/
+      terraform version
+    displayName: 'Install Terraform'
 
   - script: |
-      set -euo pipefail
+      set -e
       chmod 644 "$(sshPublicKey.secureFilePath)"
       ls -l "$(sshPublicKey.secureFilePath)"
     displayName: "Prepare SSH public key"
@@ -72,7 +57,7 @@ steps:
       scriptLocation: "inlineScript"
       workingDirectory: "$(workingDirectory)"
       inlineScript: |
-        set -euo pipefail
+        set -e
 
         export ARM_USE_AZUREAD=true
         export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
@@ -108,7 +93,7 @@ steps:
       scriptLocation: "inlineScript"
       workingDirectory: "$(workingDirectory)"
       inlineScript: |
-        set -euo pipefail
+        set -e
 
         export ARM_USE_AZUREAD=true
         export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
