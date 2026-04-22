@@ -206,7 +206,7 @@ steps:
 
         cat > "$(Build.ArtifactStagingDirectory)/infra-outputs.env" <<EOF
         vmPublicIp=${PUBLIC_IP}
-        db_hostost=${DB_HOST}
+        db_host=${DB_HOST}
         EOF
 
         cat "$(Build.ArtifactStagingDirectory)/infra-outputs.env"
