@@ -54,3 +54,5 @@ Before running it, set up:
 3. A variable group named `epicbook-secrets` containing the secret variable `dbPassword`.
 4. A secure file containing your SSH public key, matching `id_ed25519.pub` or the `sshPublicKeySecureFile` variable in the pipeline.
 5. Service-connection access to both the target subscription and the backend storage account used in `backend.tf`.
+
+# LICENSE
