@@ -90,7 +90,7 @@ steps:
     env:
       TF_IN_AUTOMATION: "true"
       TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
-      TF_VAR_db_password: "$(dbPassword)"
+      TF_VAR_db_password: "$(db_password)"
 
   - task: AzureCLI@2
     displayName: "Terraform plan"
@@ -126,7 +126,7 @@ steps:
     env:
       TF_IN_AUTOMATION: "true"
       TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
-      TF_VAR_db_password: "$(dbPassword)"
+      TF_VAR_db_password: "$(db_password)"
 
   - task: PublishPipelineArtifact@1
     displayName: "Publish Terraform plan"
@@ -168,7 +168,7 @@ steps:
     env:
       TF_IN_AUTOMATION: "true"
       TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
-      TF_VAR_db_password: "$(dbPassword)"
+      TF_VAR_db_password: "$(db_password)"
 
   - task: AzureCLI@2
     displayName: "Write Terraform outputs to artifact file"
@@ -213,7 +213,7 @@ steps:
     env:
       TF_IN_AUTOMATION: "true"
       TF_VAR_ssh_public_key: "$(sshPublicKey.secureFilePath)"
-      TF_VAR_db_password: "$(dbPassword)"
+      TF_VAR_db_password: "$(db_password)"
 
   - task: PublishPipelineArtifact@1
     displayName: "Publish infrastructure outputs"
