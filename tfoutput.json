@@ -1,0 +1,17 @@
+{
+  "admin_user": {
+    "sensitive": false,
+    "type": "string",
+    "value": "azureuser"
+  },
+  "db_host": {
+    "sensitive": false,
+    "type": "string",
+    "value": "epicbook-mysql-server.mysql.database.azure.com"
+  },
+  "public_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "20.87.215.74"
+  }
+}
