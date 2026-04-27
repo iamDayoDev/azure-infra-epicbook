@@ -5,7 +5,7 @@ resource "azurerm_resource_group" "rg" {
 
 
 resource "azurerm_virtual_network" "vnet" {
-  name                = "ansible-epicbook-vnet"
+  name                = "epicbook-vnet"
   address_space       = var.address_space
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -13,14 +13,14 @@ resource "azurerm_virtual_network" "vnet" {
 
 
 resource "azurerm_subnet" "subnet" {
-  name                 = "ansible-epicbook-subnet"
+  name                 = "epicbook-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = var.address_prefixes
 }
 
 resource "azurerm_network_security_group" "nsg" {
-  name                = "ansible-epicbook-nsg"
+  name                = "epicbook-nsg"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -50,7 +50,7 @@ resource "azurerm_network_security_group" "nsg" {
 }
 
 resource "azurerm_public_ip" "pip" {
-  name                = "ansible-epicbook-pip"
+  name                = "epicbook-pip"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
@@ -58,7 +58,7 @@ resource "azurerm_public_ip" "pip" {
 }
 
 resource "azurerm_network_interface" "nic" {
-  name                = "ansible-epicbook-nic"
+  name                = "epicbook-nic"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   ip_configuration {
