@@ -52,7 +52,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "db_dns_link" {
 }
 
 resource "azurerm_mysql_flexible_server" "epicbook_db" {
-  name                   = "epicbook-mysql-server"
+  name                   = "epicbook-database"
   resource_group_name    = azurerm_resource_group.rg.name
   location               = var.location
   administrator_login    = var.db_username
